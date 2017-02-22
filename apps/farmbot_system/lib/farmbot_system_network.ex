@@ -13,7 +13,7 @@ defmodule Farmbot.System.Network do
   defp mod(target), do: Module.concat([Farmbot, System, target, Network])
 
   def init(target) do
-    Logger.debug ">> is starting networking"
+    Logger.info ">> is starting networking"
     m = mod(target)
     {:ok, _cb} = m.start_link
     {:ok, interface_config} = get_config("interfaces")
@@ -22,12 +22,10 @@ defmodule Farmbot.System.Network do
   end
 
   # if networking is disabled.
-  defp parse_and_start_config(nil, _) do
-    spawn fn() ->
-      Process.sleep(2500) # simulate network coming up. (REALLY REALLY FAST)
-      Farmbot.System.Network.on_connect()
-    end
-  end
+  defp parse_and_start_config(nil, _), do: spawn(fn ->
+    Process.sleep(2000)
+    Farmbot.Auth.try_log_in 
+  end)
 
   defp parse_and_start_config(config, m) do
     for {interface, settings} <- config do
@@ -35,6 +33,9 @@ defmodule Farmbot.System.Network do
     end
   end
 
+  @doc """
+    Starts the network manager
+  """
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
@@ -100,24 +101,28 @@ defmodule Farmbot.System.Network do
     # finished setting stuff up.
     Process.sleep(2000)
     if fun, do: fun.()
-    Logger.debug ">> is connected to the World Wide Web."
-    Logger.debug ">> is reading configurations."
+    Logger.info ">> is connected to the World Wide Web."
+    Logger.info ">> is reading configurations."
     {:ok, ssh} = get_config("ssh")
     {:ok, ntp} = get_config("ntp")
-    {:ok, _fpf} = get_config("first_party_farmware")
+
+    # First Party Farmware is not really a network concern but here we are...
+    {:ok, fpf} = GenServer.call(CS, {:get, Configuration, "first_party_farmware"})
+
     if ntp do
-      Logger.debug ">> ntp"
+      Logger.info ">> ntp"
       Ntp.set_time
     end
 
     if ssh do
-      Logger.debug ">> ssh"
+      Logger.info ">> ssh"
       SSH.start_link
     end
 
-    # if fpf, do: Farmware.get_first_party_farmware
-    Logger.debug ">> Login"
-    Auth.try_log_in
+    if fpf, do: Farmware.get_first_party_farmware
+
+    Logger.info ">> Login"
+    Auth.try_log_in!
   end
 
   @spec get_config(String.t) :: {:ok, any}

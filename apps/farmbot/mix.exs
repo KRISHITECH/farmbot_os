@@ -24,10 +24,13 @@ defmodule Farmbot.Mixfile do
      deps_path:   "../../deps/#{@target}",
      images_path: "../../images/#{@target}",
      config_path: "../../config/config.exs",
+     compilers: Mix.compilers ++ maybe_use_webpack(),
      lockfile: "../../mix.lock",
      aliases: aliases(@target),
      deps:    deps() ++ system(@target),
      name: "Farmbot",
+     webpack_watch: Mix.env == :dev,
+     webpack_cd: ".",
      source_url: "https://github.com/Farmbot/farmbot_os",
      homepage_url: "http://farmbot.io",
      docs: [main: "Farmbot",
@@ -44,8 +47,11 @@ defmodule Farmbot.Mixfile do
           version: @version,
           commit: commit()}]},
      applications: applications(),
-     included_applications: [:gen_mqtt, :ex_json_schema]]
+     included_applications: [:gen_mqtt, :ex_json_schema] ++ included_apps(Mix.env)]
   end
+
+  defp included_apps(:prod), do: [:ex_syslogger]
+  defp included_apps(_), do: []
 
   # common for test, prod, and dev
   defp applications do
@@ -60,10 +66,12 @@ defmodule Farmbot.Mixfile do
       :vmq_commons,
       :amnesia,
       :gen_stage,
+      :plug,
+      :cors_plug,
+      :cowboy,
       :"farmbot_system_#{@target}",
       :farmbot_system,
       :farmbot_auth,
-      :farmbot_configurator,
       :quantum, # Quantum needs to start AFTER farmbot_system, so we can set up its dirs
       :timex, # Timex needs to start AFTER farmbot_system, so we can set up its dirs
    ]
@@ -71,34 +79,61 @@ defmodule Farmbot.Mixfile do
 
   defp deps do
     [
-      {:nerves_uart, "~> 0.1.0"}, # uart handling
+      {:nerves_uart, "0.1.1"}, # uart handling
+      {:nerves_lib, github: "nerves-project/nerves_lib"}, # this has a good uuid
+
       {:poison, "~> 3.0"}, # json
       {:httpoison, github: "edgurgel/httpoison"},
-      {:nerves_lib, github: "nerves-project/nerves_lib"}, # this has a good uuid
+      {:ex_json_schema, "~> 0.5.3"},
+
       {:gen_mqtt, "~> 0.3.1"}, # for rpc transport
       {:vmq_commons, "1.0.0", manager: :rebar3}, # This is for mqtt to work.
+
       {:mustache, "~> 0.0.2"}, # string templating
       {:timex, "~> 3.0"}, # managing time. for the scheduler mostly.
       {:quantum, ">= 1.8.1"}, # cron jobs
-      {:amnesia, github: "meh/amnesia"}, # database implementation
       {:gen_stage, "0.11.0"},
-      {:ex_json_schema, "~> 0.5.3"},
+
+      # Database
+      {:amnesia, github: "meh/amnesia"}, # database implementation
+
+      # Log to syslog
+      {:ex_syslogger, "~> 1.3.3", only: :prod},
+
+      # Test/Dev only
       {:credo, "0.6.0-rc1",  only: [:dev, :test]},
       {:ex_doc, "~> 0.14", only: :dev},
       {:dialyxir, "~> 0.4", only: [:dev], runtime: false},
       {:faker, "~> 0.7", only: :test},
+
+      # Web stuff
+      {:plug, "~> 1.0"},
+      {:cors_plug, "~> 1.1"},
+      {:cowboy, "~> 1.0.0"},
+      {:ex_webpack, "~> 0.1.1", runtime: false},
+
       # Farmbot Stuff
       {:"farmbot_system_#{@target}", in_umbrella: true},
       {:farmbot_system,              in_umbrella: true},
-      {:farmbot_auth,                in_umbrella: true},
-      {:farmbot_configurator,        in_umbrella: true}
+      {:farmbot_auth,                in_umbrella: true}
     ]
   end
+
+
+  # TODO(connor): Build this into `:ex_webpack`
+  defp maybe_use_webpack() do
+    case System.get_env("NO_WEBPACK") do
+      "true" -> []
+      _ -> [:ex_webpack]
+    end
+  end
+
 
   # this is for cross compilation to work
   # New version of nerves might not need this?
   defp aliases("host"), do: [
     "firmware": ["farmbot.warning"],
+    "firmware.push": ["farmbot.warning"],
     "credo": ["credo list --only readability,warning,todo,inspect,refactor --ignore-checks todo,spec"],
     "test": ["test", "credo"]]
 

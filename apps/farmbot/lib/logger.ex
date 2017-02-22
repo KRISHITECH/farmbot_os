@@ -15,9 +15,11 @@ defmodule Farmbot.Logger do
   @spec init(any) :: {:ok, state}
   def init(_), do: {:ok, build_state()}
 
+  # ten megs. i promise
+  # @max_file_size 1.0e+7
+
   # The example said ignore messages for other nodes, so im ignoring messages
   # for other nodes.
-  @lint false
   def handle_event({_level, gl, {Logger, _, _, _}}, state)
     when node(gl) != node()
   do
@@ -59,7 +61,6 @@ defmodule Farmbot.Logger do
 
   def handle_event(:flush, _state), do: {:ok, build_state()}
 
-  @lint false
   # If the post succeeded, we clear the messages
   def handle_call(:post_success, {_, _}), do: {:ok, :ok, {[], false}}
   # If it did not succeed, keep the messages, and try again until it completes.
@@ -67,14 +68,10 @@ defmodule Farmbot.Logger do
     {:ok, :ok, {messages, false}}
   end
 
-  def handle_call(:messages, {messages, f}) do
-    {:ok, messages, {messages, f}}
-  end
+  def handle_call(:messages, {messages, f}), do: {:ok, messages, {messages, f}}
 
   # Catch any stray calls.
   def handle_call(_, state), do: {:ok, :unhandled, state}
-
-  @lint false
   def handle_info(_, state), do: dispatch state
 
   @spec terminate(any, state) :: no_return
@@ -90,10 +87,7 @@ defmodule Farmbot.Logger do
   end
 
   @spec emit(map) :: :ok
-  defp emit(msg) do
-    Farmbot.Transport.log(msg)
-    :ok
-  end
+  defp emit(msg), do: Farmbot.Transport.log(msg)
 
   # IF we are already posting messages to the api, no need to check the count.
   defp dispatch({messages, true}), do: {:ok, {messages, true}}
@@ -126,10 +120,13 @@ defmodule Farmbot.Logger do
   # Parses what the api sends back. Will only ever return :ok even if there was
   # an error.
   @spec parse_resp(any) :: :ok
-  defp parse_resp(%HTTPoison.Response{status_code: 200}),
+  defp parse_resp({:ok, %HTTPoison.Response{status_code: 200}}),
     do: GenEvent.call(Elixir.Logger, Farmbot.Logger, :post_success)
-  defp parse_resp(error),
-    do: GenEvent.call(Elixir.Logger, Farmbot.Logger, {:post_fail, error})
+
+  defp parse_resp(error) do
+    IO.inspect error
+    GenEvent.call(Elixir.Logger, Farmbot.Logger, {:post_fail, error})
+  end
 
   @type rpc_log_type
     :: :success
@@ -190,12 +187,25 @@ defmodule Farmbot.Logger do
     end
   end
 
-  defp filter_module(:"Elixir.Nerves.InterimWiFi", _m), do: {:ok, "[FILTERED]"}
-  defp filter_module(:"Elixir.Nerves.NetworkInterface", _m), do: nil
-  defp filter_module(:"Elixir.Nerves.InterimWiFi.WiFiManager.EventHandler", _m), do: nil
-  defp filter_module(:"Elixir.Nerves.InterimWiFi.DHCPManager", _), do: nil
-  defp filter_module(:"Elixir.Nerves.NetworkInterface.Worker", _), do: nil
-  defp filter_module(:"Elixir.Nerves.InterimWiFi.DHCPManager.EventHandler", _), do: nil
+  @filtered "[FILTERED]"
+  defp filter_module(:"Elixir.Nerves.InterimWiFi", _m),
+    do: {:ok, @filtered}
+
+  defp filter_module(:"Elixir.Nerves.NetworkInterface", _m),
+    do: {:ok, @filtered}
+
+  defp filter_module(:"Elixir.Nerves.InterimWiFi.WiFiManager.EventHandler", _m),
+    do: {:ok, @filtered}
+
+  defp filter_module(:"Elixir.Nerves.InterimWiFi.DHCPManager", _),
+    do: {:ok, @filtered}
+
+  defp filter_module(:"Elixir.Nerves.NetworkInterface.Worker", _),
+    do: {:ok, @filtered}
+
+  defp filter_module(:"Elixir.Nerves.InterimWiFi.DHCPManager.EventHandler", _),
+    do: {:ok, @filtered}
+
   defp filter_module(_, message), do: {:ok, message}
 
   defp filter_text(message) when is_list(message), do: nil
@@ -204,12 +214,21 @@ defmodule Farmbot.Logger do
   # Couuld probably do this inline but wheres the fun in that. its a functional
   # language isn't it?
   # Takes Loggers time stamp and converts it into a unix timestamp.
-  defp parse_created_at({{year, month, day}, {hour, minute, second, _}}) do
-    dt = Timex.to_datetime({{year, month, day}, {hour, minute, second}})
-    f = DateTime.to_iso8601(dt)
+  defp parse_created_at({{year, month, day}, {hour, minute, second, _mil}}) do
+    f = %DateTime{year: year,
+      month: month,
+      day: day,
+      hour: hour,
+      minute: minute,
+      second: second,
+      microsecond: {0,0},
+      std_offset: 0,
+      time_zone: "Etc/UTC",
+      utc_offset: 0,
+      zone_abbr: "UTC"}
+    |> DateTime.to_iso8601
     {:ok, f}
   end
-  defp parse_created_at({_,_}), do: {:ok, :os.system_time}
   defp parse_created_at(_), do: nil
 
   @spec build_log(String.t, number, rpc_log_type, [channels], [integer])

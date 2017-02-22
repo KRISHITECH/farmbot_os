@@ -46,13 +46,12 @@ defmodule Farmbot.Transport.GenMqtt do
     {:noreply, [], {pid, t}}
   end
 
-  @lint false # Why do i have to do this?
   def handle_info({:authorization, %Token{} = new_t}, {client, _})
   when is_pid(client) do
     # Probably a good idea to restart mqtt here.
-    Logger.debug ">> needs to restart MQTT"
+    Logger.info ">> needs to restart MQTT"
     if Process.alive?(client) do
-      GenServer.stop(client, :authorization)
+      GenServer.stop(client, :normal)
     end
     {:ok, pid} = start_client(new_t)
     {:noreply, [], {pid,new_t}}

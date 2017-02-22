@@ -7,16 +7,25 @@ defmodule Farmbot.System.NervesCommon.EventManager do
   do
     spawn fn() ->
       Farmbot.System.Network.on_connect(fn() ->
-        Logger.debug ">> is waiting for linux and network and what not."
+        Logger.info ">> is waiting for linux and network and what not."
         Process.sleep(5000) # ye old race linux condidtion
       end)
     end
     {:ok, state}
   end
 
+  def handle_event({:nerves_wpa_supplicant, _pid, event}, state) when is_atom(event) do
+    event = event |> Atom.to_string
+    wrong_key? = event |> String.contains? "reason=WRONG_KEY"
+    not_found? = event |> String.contains? "CTRL-EVENT-NETWORK-NOT-FOUND"
+    if wrong_key?, do: Farmbot.System.factory_reset
+    if not_found?, do: Farmbot.System.factory_reset
+    {:ok, state}
+  end
+
     # just print hostapd data
   def handle_event({:hostapd, data}, state) do
-    Logger.debug ">> got some hostapd data: #{data}"
+    Logger.info ">> got some hostapd data: #{data}"
     {:ok, state}
   end
 
