@@ -7,7 +7,6 @@ defmodule Farmware.Worker do
   use GenStage
   @tracker Farmware.Tracker
   alias Farmware.FarmScript
-  alias Farmbot.Transport.Farmware, as: Transport
 
   @type env :: map
 
@@ -19,7 +18,7 @@ defmodule Farmware.Worker do
 
   @spec init(map) :: {:consumer, env, subscribe_to: [atom]}
   def init(_) do
-    Logger.debug "Starting Farmware Worker"
+    Logger.info "Starting Farmware Worker"
     {:consumer, initial_env(), subscribe_to: [@tracker]}
   end
 
@@ -39,19 +38,18 @@ defmodule Farmware.Worker do
 
   # when a queue of scripts comes in execute them in order
   def handle_events(farm_scripts, _from, environment) do
-    Logger.debug "Farmware Worker handling #{Enum.count(farm_scripts)} scripts"
+    Logger.info "Farmware Worker handling #{Enum.count(farm_scripts)} scripts"
     for scr <- farm_scripts do
       # give ten seconds to accept a connection.
       #TODO(Connor) this will cause problems im sure.
-      spawn fn() ->
-        Logger.debug ">> Is accepting a connection for 10 seconds."
-        Transport.farmware_start()
-      end
       FarmScript.run(scr, get_env(environment))
-      Transport.farmware_end()
     end
-    Logger.debug "Farmware Worker done with farm_scripts"
+    Logger.info "Farmware Worker done with farm_scripts"
     {:noreply, [], environment}
+  end
+
+  def handle_call({:add_envs, map}, _, state) do
+    {:reply, :ok, [], Map.merge(state, map)}
   end
 
   def handle_call(:get_state, _from, state) do
@@ -62,12 +60,16 @@ defmodule Farmware.Worker do
   def handle_info({port, _info}, s) when is_port(port), do: {:noreply, [], s}
 
   def handle_info(info, environment) do
-    Logger.debug ">> got unhandled info in " <>
+    Logger.info ">> got unhandled info in " <>
       "Farmware Worker: #{inspect info}", nopub: true
     {:noreply, [], environment}
   end
 
   def handle_cast(_info, environment), do: {:noreply, [], environment}
+
+  def add_envs(map) do
+    GenServer.call(__MODULE__, {:add_envs, map})
+  end
 
   @spec get_env(env) :: [{binary, binary}]
   defp get_env(environment) do

@@ -52,38 +52,39 @@ defmodule Farmware do
   @spec install(binary) :: map | no_return
   @lint {Credo.Check.Refactor.ABCSize, false}
   def install(manifest_url) do
-    Logger.debug "Getting Farmware Manifest"
+    Logger.info "Getting Farmware Manifest"
     {manifest, json} = Manifest.get!(manifest_url).body
     path = FS.path() <> "/farmware/#{manifest[:package]}"
 
     raise_if_exists(path, manifest)
 
-    Logger.debug "Getting Farmware Package"
+    Logger.info "Getting Farmware Package"
     zip_file_path = Downloader.run(manifest[:zip], "/tmp/#{manifest[:package]}.zip")
-    Logger.debug "Unpacking Farmware Package"
+    Logger.info "Unpacking Farmware Package"
 
     FS.transaction fn() ->
-      Logger.debug "Installing farmware!"
+      Logger.info "Installing farmware!"
       File.mkdir!(path)
       unzip_file(zip_file_path, path)
       File.write(path <> "/manifest.json", json)
     end, true
 
     File.rm! "/tmp/#{manifest[:package]}.zip"
-    Logger.debug "Validating Farmware package"
+    Logger.info "Validating Farmware package"
     case File.read(path <> "/manifest.json") do
       {:ok, _contents} ->
-        Logger.debug ">> is installing Farmware: #{manifest[:package]}"
+        Logger.info ">> is installing Farmware: #{manifest[:package]}"
         PT.register(:farmware, manifest[:package], manifest[:package])
         manifest
       _ ->
-        Logger.debug "invalid farmware package!"
+        Logger.info "invalid farmware package!"
         FS.transaction fn() ->
           File.rm_rf!(path)
         end
         raise "Not valid Farmware!"
     end
   end
+  _ = @lint # HACK(Connor) fix credo compiler warning
 
   @doc """
     Uninstalls a Farmware package
@@ -190,9 +191,13 @@ defmodule Farmware do
     farmwares = HTTPoison.get!("https://raw.githubusercontent.com/FarmBot-Labs/farmware_manifests/master/manifest.json").body
     |> Poison.decode!
     for %{"name" => name, "manifest" => man} <- farmwares do
-      if !installed?(name),
-        do: install(man),
-      else: Logger.debug ">> #{name} is already installed"
+      if installed?(name) do
+        # if its installed already update it
+        update(man)
+      else
+        # if not just install it.
+        install(man)
+      end
     end
   end
 

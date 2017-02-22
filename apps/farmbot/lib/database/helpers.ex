@@ -37,6 +37,7 @@ defmodule Farmbot.Sync.Helpers do
     end
     |> parse_selection
   end
+  _ = @lint # HACK(Connor) fix credo compiler warning
 
   @doc """
     Gets a farm event by id
@@ -156,9 +157,8 @@ defmodule Farmbot.Sync.Helpers do
     Amnesia.transaction do
       # there is only ever at most one device..
       Device.first
-      || [%Device{id: -1, name: "Farmbot", planting_area_id: nil, webcam_url: nil}]
+      || %Device{id: -1, name: "Farmbot", planting_area_id: nil, webcam_url: nil}
     end
-    |> List.first
     |> Map.get(:name)
   end
 

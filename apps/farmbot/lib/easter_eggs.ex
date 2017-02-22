@@ -90,7 +90,7 @@ defmodule Farmbot.EasterEggs do
   end
 
   @spec get_random_minute :: integer
-  defp get_random_minute, do: 50..60 |> Enum.random
+  defp get_random_minute, do: 200..300 |> Enum.random
 
   @doc """
     Says a random sentence every twenty minutes by default.
@@ -103,6 +103,7 @@ defmodule Farmbot.EasterEggs do
             task: fn -> Farmbot.EasterEggs.say_random_sentence end}
     Quantum.add_job(__MODULE__, job)
   end
+  _ = @lint # HACK(Connor) fix credo compiler warning
 
   @doc """
     Stops an already started job.
@@ -120,7 +121,7 @@ defmodule Farmbot.EasterEggs do
   def handle_cast(sentence, %{nouns: nouns, verbs: verbs})
   when is_binary(sentence) do
     rendered = Mustache.render sentence, nouns
-    Logger.debug ">> " <> rendered, type: :fun
+    Logger.info ">> " <> rendered, type: :fun
     {:noreply, %{nouns: nouns, verbs: verbs}}
   end
 

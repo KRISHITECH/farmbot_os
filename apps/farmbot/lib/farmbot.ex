@@ -13,16 +13,20 @@ defmodule Farmbot do
              commit: commit})
   do
     children = [
+      supervisor(Farmbot.Configurator, [], restart: :permanent),
       # Generic counter.
       worker(Counter, [], restart: :permanent),
       # The worker for diffing db entries.
-      worker(Farmbot.Sync.Database.Diff, [], restart: :permanent),
+      worker(Farmbot.Sync.Supervisor, [], restart: :permanent),
       # Handles tracking of various parts of the bots state.
       supervisor(Farmbot.BotState.Supervisor,
         [%{target: target,
            compat_version: compat_version,
            version: version,
            commit: commit}], restart: :permanent),
+
+      # Handles FarmEvents
+      supervisor(FarmEvent.Supervisor, [], restart: :permanent),
 
       # Handles the passing of messages from one part of the system to another.
       supervisor(Farmbot.Transport.Supervisor, [], restart: :permanent),
@@ -42,7 +46,7 @@ defmodule Farmbot do
   """
   @spec start(atom, [any]) :: {:ok, pid}
   def start(_, [args]) do
-    Logger.debug ">> init!"
+    Logger.info ">> init!"
     Amnesia.start
     Database.create! Keyword.put([], :memory, [node()])
     Database.wait(15_000)

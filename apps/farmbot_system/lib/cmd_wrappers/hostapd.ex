@@ -34,9 +34,10 @@ defmodule Farmbot.System.Network.Hostapd do
   # Don't lint this. Its not too complex credo.
   # No but really TODO: make this a little less complex.
   @lint false
+  _ = @lint
   @doc false
   def init([interface: interface, ip_address: ip_addr, manager: manager]) do
-    Logger.debug ">> is starting hostapd on #{interface}"
+    Logger.info ">> is starting hostapd on #{interface}"
     # We want to know if something does.
     Process.flag :trap_exit, true
     # ip_addr = @ip_addr
@@ -130,7 +131,7 @@ defmodule Farmbot.System.Network.Hostapd do
     dhcp-option=3,#{ip_addr}
     dhcp-option=6,#{ip_addr}
     dhcp-authoritative
-    # address=/#/#{ip_addr}
+    address=/#/#{ip_addr}
     """
   end
 
@@ -172,7 +173,7 @@ defp print_cmd({_, 0}), do: :ok
 
 
   def terminate(_,state) do
-    Logger.debug ">> is stopping hostapd"
+    Logger.info ">> is stopping hostapd"
     {_hostapd_port, hostapd_pid} = state.hostapd
     {_dnsmasq_port, dnsmasq_pid} = state.dnsmasq
     # Port.close hostapd_port
