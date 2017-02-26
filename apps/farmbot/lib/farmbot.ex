@@ -5,6 +5,7 @@ defmodule Farmbot do
   require Logger
   use Supervisor
   alias Farmbot.Sync.Database
+  alias Farmbot.System.Supervisor, as: FBSYS
 
   @spec init(map) :: [{:ok, pid}]
   def init(%{target: target,
@@ -13,6 +14,11 @@ defmodule Farmbot do
              commit: commit})
   do
     children = [
+      # system specifics
+      supervisor(FBSYS, [target: target], restart: :permanent),
+      # auth services
+      worker(Farmbot.Auth, [], restart: :permanent),
+      # web app
       supervisor(Farmbot.Configurator, [], restart: :permanent),
       # Generic counter.
       worker(Counter, [], restart: :permanent),
