@@ -29,10 +29,11 @@ defmodule Farmbot.Mixfile do
      compilers: Mix.compilers ++ maybe_use_webpack(),
      lockfile: "../../mix.lock",
      aliases: aliases(@target),
-     deps:    deps() ++ system(@target),
-     name: "Farmbot",
+     deps: deps() ++ system(@target),
      preferred_cli_env: [
-       vcr: :test, "vcr.delete": :test, "vcr.check": :test, "vcr.show": :test
+       vcr: :test, "vcr.delete": :test, "vcr.check": :test, "vcr.show": :test,
+       "all_test": :test,
+       "coveralls": :test, "coveralls.detail": :test, "coveralls.post": :test, "coveralls.html": :test, "coveralls.travis": :test
      ],
      webpack_watch: Mix.env == :dev,
      webpack_cd: ".",
@@ -61,7 +62,7 @@ defmodule Farmbot.Mixfile do
           version: @version,
           commit: commit()}]},
      applications: applications() ++ applications(@target),
-     included_applications: [:gen_mqtt, :ex_json_schema] ++ included_apps(Mix.env)]
+     included_applications: [:gen_mqtt, :ex_json_schema, :fs] ++ included_apps(Mix.env)]
   end
 
   defp included_apps(:prod), do: [:ex_syslogger]
@@ -86,7 +87,6 @@ defmodule Farmbot.Mixfile do
       :cowboy,
       :quantum, # Quantum needs to start AFTER farmbot, so we can set up its dirs
       :timex, # Timex needs to start AFTER farmbot, so we can set up its dirs,
-      :fs
    ]
   end
 
@@ -165,7 +165,9 @@ defmodule Farmbot.Mixfile do
     "firmware": ["compile"],
     "firmware.push": ["farmbot.warning"],
     "credo": ["credo list --only readability,warning,todo,inspect,refactor --ignore-checks todo,spec"],
-    "all_test": ["credo", "coveralls"]]
+    "all_test": ["credo", "coveralls"],
+    "travis_test": ["credo", "coveralls.travis"]
+  ]
 
   # TODO(Connor) Maybe warn if building firmware in dev mode?
   defp aliases(_system) do
