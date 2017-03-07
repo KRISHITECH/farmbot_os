@@ -19,7 +19,7 @@ defmodule Farmbot.Mixfile do
      test_coverage: [tool: ExCoveralls],
      version: @version,
      target: @target,
-     archives: [nerves_bootstrap: "~> 0.2.0"],
+     archives: [nerves_bootstrap: "~> 0.3.0"],
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      build_path: "_build/#{@target}",
@@ -88,6 +88,8 @@ defmodule Farmbot.Mixfile do
       :cowboy,
       :quantum, # Quantum needs to start AFTER farmbot, so we can set up its dirs
       :timex, # Timex needs to start AFTER farmbot, so we can set up its dirs,
+      :inets,
+      :redix
    ]
   end
 
@@ -124,6 +126,7 @@ defmodule Farmbot.Mixfile do
 
       # Database
       {:amnesia, github: "meh/amnesia"}, # database implementation
+      {:redix, ">= 0.0.0"},
 
       # Log to syslog
       {:ex_syslogger, "~> 1.3.3", only: :prod},
