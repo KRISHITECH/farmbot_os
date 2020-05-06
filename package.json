@@ -30,11 +30,14 @@
     "typescript": "^2.1.4",
     "url-loader": "^0.5.7",
     "webpack": "^2.2.0-rc.3",
-    "webpack-uglify-js-plugin": "^1.1.9"
+    "webpack-uglify-js-plugin": "^1.1.9",
+    "snyk": "^1.319.0"
   },
   "scripts": {
     "build": "node_modules/webpack/bin/webpack.js --config web/tools/webpack.config.build.js --display-error-details --colors",
-    "watch": "node_modules/webpack/bin/webpack.js --watch --config web/tools/webpack.config.watch.js --display-error-details --colors"
+    "watch": "node_modules/webpack/bin/webpack.js --watch --config web/tools/webpack.config.watch.js --display-error-details --colors",
+    "snyk-protect": "snyk protect",
+    "prepublish": "npm run snyk-protect"
   },
   "repository": {
     "type": "git",
@@ -45,5 +48,6 @@
   "bugs": {
     "url": "https://github.com/farmbot/farmbot_os/issues"
   },
-  "homepage": "https://github.com/farmbot/farmbot_os#readme"
+  "homepage": "https://github.com/farmbot/farmbot_os#readme",
+  "snyk": true
 }
