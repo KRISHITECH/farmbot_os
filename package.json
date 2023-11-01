@@ -8,7 +8,7 @@
     "@types/react": "^15.0.13",
     "@types/react-dom": "^0.14.23",
     "@types/react-select": "^1.0.39",
-    "axios": "^0.15.3",
+    "axios": "^1.6.0",
     "bootstrap": "^3.3.7",
     "css-loader": "^0.26.1",
     "extract-text-webpack-plugin": "^2.0.0-beta.5",
